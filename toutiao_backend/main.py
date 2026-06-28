@@ -1,10 +1,27 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from routers import news, users, favorite, history, ai
 from fastapi.middleware.cors import CORSMiddleware
 
+from config.db_conf import async_engine
+from models import Base
+from models.news import Category, News  # noqa: 确保模型注册到 Base.metadata
+from models.users import User, UserToken  # noqa
+from models.favorite import Favorite  # noqa
+from models.history import History  # noqa
+from routers import news, users, favorite, history, ai
 from utils.exception_handlers import register_exception_handlers
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时：自动创建所有数据库表
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # 注册异常处理器
 register_exception_handlers(app)
